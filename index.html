@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#120c32">
-  <meta name="description" content="3L EVE2: interactive kasi bored ako magbasa">
+  <meta name="description" content="3L EVE2: an interactive Philippine law study adventure with checkpoints, games, and progress tracking.">
   <title>3L EVE2 — Interactive Law Study Adventure</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -16,13 +16,13 @@
         <div class="sun-disc"></div><div class="mountains"></div>
         <div class="floating-book book-one">§</div><div class="floating-book book-two">⚖</div>
         <div class="sprite-portrait" aria-hidden="true"><div class="sprite-hair"></div><div class="sprite-head"><i></i><b></b></div><div class="sprite-torso"></div><div class="sprite-skirt"></div><div class="sprite-legs"></div></div>
-        <div class="auth-art-caption">Blah blah blah. Proper Name proper place backstory stuff</div>
+        <div class="auth-art-caption">Every provision hides a clue. Every case is a quest.</div>
       </div>
       <div class="auth-side">
         <div class="brand"><span class="brand-mark">⚖</span><span>3L <span class="brand-accent">EVE2</span></span></div>
-        <div class="tiny-label">Kasi bored ako</div>
+        <div class="tiny-label">A collaborative law study adventure</div>
         <h1>Study the law.<br><em>Play the story.</em></h1>
-        <p class="muted">Sabi kasi ni Ima akala nya website daw ginawa ko sa labor ko</p>
+        <p class="muted">Explore legal worlds, meet case characters, complete mini-games, and pick up where you left off.</p>
         <div id="modeBanner" class="status-banner" role="status">Offline preview · accounts and progress stay on this device</div>
         <div class="switcher" role="group" aria-label="Account action">
           <button id="signInMode" class="switch active" type="button">Log in</button>
@@ -36,7 +36,7 @@
           <button id="authSubmit" class="primary-button full" type="submit">Enter the adventure →</button>
         </form>
         <p id="authError" class="form-error" role="alert" aria-live="polite"></p>
-        <p class="fine-print">For the block, Used Free database only. Avoid PINs used elsewhere.</p>
+        <p class="fine-print">For a study group, not confidential records or official graded examinations. Avoid PINs used elsewhere.</p>
       </div>
     </section>
 
@@ -46,7 +46,7 @@
         <div class="user-controls"><span class="mode-chip" id="dashMode">Preview</span><span id="welcomeName" class="user-name"></span><button id="logoutButton" class="link-button" type="button">Log out</button></div>
       </header>
       <div class="dash-content">
-        <div class="hero-copy"><div class="tiny-label">YOUR ADVENTURE AWAITS</div><h2>A quest for <em>idk</em></h2><p>Choose a world. Move your character. Interact with glowing checkpoints. Answer questions to earn study stars.</p></div>
+        <div class="hero-copy"><div class="tiny-label">YOUR ADVENTURE AWAITS</div><h2>A quest for <em>jurisprudence.</em></h2><p>Choose a world. Move your character. Interact with glowing checkpoints. Answer questions to earn study stars.</p></div>
         <div class="quick-stats">
           <div class="stat"><strong id="completedStat">0 / 12</strong><span>Checkpoints conquered</span></div>
           <div class="stat"><strong id="starsStat">0 ✦</strong><span>Study stars earned</span></div>
@@ -56,7 +56,7 @@
         <div class="course-grid">
           <button class="course-card succession" data-course="succession" type="button">
             <div class="course-art succession-art" aria-hidden="true"><span class="big-glyph">📜</span><span class="tiny-pill">THE ESTATE OF SECRETS</span></div>
-            <div class="course-content"><div class="course-num">LAW 105 · WORLD 01</div><h3>Succession</h3><p>Explore wills, family heirs, legitimes, estate shares, collation, and disinheritance.</p><div class="meter"><span id="successionMeter"></span></div><div class="course-bottom"><span id="successionCount">0/6 checkpoints</span><span>Explore world ↗</span></div></div>
+            <div class="course-content"><div class="course-num">LAW 105 · WORLD 01</div><h3>Succession</h3><p>Follow the reviewer: System of Legitimes, Compulsory Heirs, Legitime Combinations, protection, computation, reduction and disinheritance.</p><div class="meter"><span id="successionMeter"></span></div><div class="course-bottom"><span id="successionCount">0/6 checkpoints</span><span>Explore world ↗</span></div></div>
           </button>
           <button class="course-card labor" data-course="labor" type="button">
             <div class="course-art labor-art" aria-hidden="true"><span class="big-glyph">✈</span><span class="tiny-pill">THE JOURNEY OF RIGHTS</span></div>
@@ -115,12 +115,13 @@
    </div>
   </div>
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-<script src="config.js"></script>
-<script src="lessons.js"></script>
-<script src="reference-files.js"></script>
-<script src="supplemental-laws.js"></script>
-<script src="checkpoint-guide.js"></script>
-<script src="chapters.js"></script>
-<script src="game.js"></script>
+  <script src="config.js"></script>
+  <script src="lessons.js"></script>
+  <script src="reference-files.js"></script>
+  <script src="supplemental-laws.js"></script>
+  <script src="checkpoint-guide.js"></script>
+  <script src="chapters.js"></script>
+  <script src="succession-syllabus.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>

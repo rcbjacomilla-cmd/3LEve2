@@ -86,3 +86,22 @@ window.LEXQUEST_REFERENCE_FILES.succession.laws=Object.assign(window.LEXQUEST_RE
     "source": "Succession Block Notes-3, p. 16; provision excerpt as printed in the reviewer"
   }
 });
+
+
+/* Additional statutory excerpts from the uploaded reviewer, pp. 3–4.
+ * Art. 895 reflects the printed Civil Code language. The notes expressly
+ * warn of its Family Code amendments; don't apply historical classes blindly. */
+Object.assign(window.LEXQUEST_REFERENCE_FILES.succession.laws,{
+  art895:{title:'Civil Code, Article 895 — Illegitimate Children (historical text)',
+  text:'Article 895. The legitime of each of the acknowledged natural children and each of the natural children by legal fiction shall consist of one-half of the legitime of each of the legitimate children or descendants.\n\nThe legitime of an illegitimate child who is neither an acknowledged natural, nor a natural child by legal fiction, shall be equal in every case to four-fifths of the legitime of an acknowledged natural child.\n\nThe legitime of the illegitimate children shall be taken from the portion of the estate at the free disposal of the testator, provided that in no case shall the total legitime of such illegitimate children exceed that free portion, and that the legitime of the surviving spouse must first be fully satisfied. (840a)\n\nREVIEWER NOTE: Amended by the Family Code; no more four-fifths rule for a spurious child under the current system. Historical deaths are discussed separately.',
+  source:'Succession Block Notes-3, pp. 3–4; article as printed with reviewer amendment note'},
+  art896:{title:'Civil Code, Article 896 — Legitimate Parents and Illegitimate Children',
+  text:'Article 896. Illegitimate children who may survive with legitimate parents or ascendants of the deceased shall be entitled to one-fourth of the hereditary estate to be taken from the portion at the free disposal of the testator. (841a)',
+  source:'Succession Block Notes-3, p. 4; provision excerpt'},
+  art897:{title:'Civil Code, Article 897 — Spouse with Legitimate and Natural Children',
+  text:'Article 897. When the widow or widower survives with legitimate children or descendants, and acknowledged natural children, or natural children by legal fiction, such surviving spouse shall be entitled to a portion equal to the legitime of each of the legitimate children which must be taken from that part of the estate which the testator can freely dispose of. (n)',
+  source:'Succession Block Notes-3, p. 4; historical class language as printed'},
+  art898:{title:'Civil Code, Article 898 — Spouse with Other Illegitimate Children',
+  text:'Article 898. If the widow or widower survives with legitimate children or descendants, and with illegitimate children other than acknowledged natural, or natural children by legal fiction, the share of the surviving spouse shall be the same as that provided in the preceding article. (n)',
+  source:'Succession Block Notes-3, p. 4; historical class language as printed'}
+});

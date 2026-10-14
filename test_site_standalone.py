@@ -1,0 +1,31 @@
+from playwright.sync_api import sync_playwright
+from pathlib import Path
+html=Path('/mnt/data/3L_EVE2_Reviewer_Legitimes_Preview.html').read_text()
+with sync_playwright() as pw:
+ browser=pw.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+ for mode,vp in [('desktop',{'width':1440,'height':900}),('mobile',{'width':390,'height':844})]:
+  page=browser.new_page(viewport=vp,device_scale_factor=1)
+  errs=[]
+  page.on('pageerror',lambda e: errs.append(str(e)))
+  page.set_content(html,wait_until='load',timeout=20000)
+  page.evaluate("""() => {state.user={name:'Class Reader',slug:'class.reader',id:'class.reader'};state.progress={}; displayScreen('dashboard');startWorld('succession');}""")
+  page.wait_for_timeout(400)
+  print(mode,'count',page.evaluate('WORLDS.succession.checkpoints.length'), 'units',page.evaluate('LEXQUEST_CHAPTERS.succession.length'), 'title',page.locator('#chapterHeading').inner_text())
+  page.screenshot(path=f'/mnt/data/3L_EVE2_Legitimes_Revision/{mode}_world.png')
+  page.locator('#navToggle').click()
+  page.screenshot(path=f'/mnt/data/3L_EVE2_Legitimes_Revision/{mode}_chapters.png')
+  print(mode,'nav preview:',page.locator('#chapterNavGroups').inner_text()[:200].replace('\n',' · '))
+  page.locator('.chapter-nav-checkpoint').nth(0).click()
+  page.wait_for_selector('#lessonModal:not(.hidden)',timeout=10000)
+  print(mode,'lesson',page.locator('#lessonTitle').inner_text(), 'images',page.locator('.lesson-original-figure img').count())
+  page.locator('.keyword-card').first.click()
+  page.screenshot(path=f'/mnt/data/3L_EVE2_Legitimes_Revision/{mode}_lesson.png')
+  print(mode,'img loaded',page.locator('.lesson-original-figure img').evaluate('(im)=>im.complete && im.naturalWidth>0'))
+  page.locator('.lesson-original-figure button').click()
+  print(mode,'zoom',page.locator('#figureZoom').is_visible())
+  page.locator('.figure-zoom-close').click()
+  page.locator('#challengeToggle').click()
+  print(mode,'quiz buttons',page.locator('.option').count())
+  print(mode,'errors',errs)
+  page.close()
+ browser.close()

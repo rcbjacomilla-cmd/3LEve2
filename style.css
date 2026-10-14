@@ -186,3 +186,18 @@ body{background:radial-gradient(circle at 15% 5%,#362072 0,transparent 35%),radi
 /* Final 4-way touch-pad sizing overrides older two-button minimums. */
 .movement-controls .control{min-width:0!important;max-width:34px!important;}
 @media(max-width:690px){.movement-controls .control{min-width:0!important;max-width:32px!important;}.controls-row{overflow:visible;}}
+
+/* Reviewer-driven Succession: original section headings and playable subheadings */
+.chapter-blurb{max-width:min(75%,850px)}
+.chapter-blurb strong{font-size:clamp(17px,2.2vw,27px);line-height:1.16;letter-spacing:.012em}
+.chapter-blurb small{line-height:1.42;max-width:760px;display:block;margin-top:6px}
+.chapter-nav-subtitle{font:650 10px/1.5 system-ui;color:#dfd3f0;padding:8px 13px 10px;background:#170e3c;border-bottom:1px solid #72579844}
+.chapter-nav-group .chapter-nav-kids{max-height:360px;overflow:auto}
+.reviewer-breadcrumb{font:900 10px/1.6 system-ui;color:#ffe7a4;text-align:center;letter-spacing:.09em;margin:5px auto 16px;max-width:880px}
+.lesson-original-figure{max-width:890px;margin:19px auto 14px;padding:14px;background:#fff9e8;border-radius:16px;border:2px solid #e0d1ac;text-align:center;color:#44304a;box-shadow:0 10px 24px #02011855}
+.lesson-figure-open{padding:0;border:0;background:transparent;display:block;margin:auto;max-width:100%}
+.lesson-figure-open img{display:block;max-width:100%;max-height:285px;width:auto;height:auto;object-fit:contain;image-rendering:auto}
+.lesson-original-figure figcaption{font:900 10px/1.5 system-ui;letter-spacing:.08em;color:#775b67;padding-top:12px}
+.reviewer-page-source{font:750 11px/1.6 system-ui;color:#cfc1ee;text-align:center;max-width:870px;margin:14px auto}
+.keyword-explanation p{white-space:pre-wrap}
+@media(max-width:720px){.chapter-blurb{max-width:100%}.chapter-blurb strong{font-size:17px}.reviewer-breadcrumb{font-size:9px}.lesson-original-figure{padding:9px}.lesson-figure-open img{max-height:230px}.chapter-nav-group .chapter-nav-kids{max-height:300px}}

@@ -192,7 +192,7 @@ function updateQuestUI(){
   const count=chapterProgress(ch);
   setText('worldTitle',ch.title);setText('worldSmall',ch.label);
   setText('chapterMeta',ch.section);setText('chapterHeading',ch.title);
-  setText('chapterDetails',`${ch.checkpoints.length} interactive checkpoints · choose any glowing object to inspect`);
+  setText('chapterDetails',`${ch.subtitle || ch.checkpoints.length+' focused checkpoints'} · ${ch.checkpoints.length} checkpoints`);
   setText('worldProgress',`${count}/${ch.checkpoints.length}`);
   setText('worldStars',solvedCount(state.course)*25);
   setText('navStudent',`${currentPlayerName()}'s chapters`);
@@ -207,6 +207,7 @@ function updateQuestUI(){
     const heading=document.createElement('span');heading.textContent=c.title;
     const subtitle=document.createElement('small');subtitle.textContent=`${c.label} · ${c.checkpoints.filter(id=>state.progress[itemKey(state.course,id)]?.completed).length}/${c.checkpoints.length}`;
     header.append(heading,subtitle);header.addEventListener('click',()=>switchChapter(c.id));group.append(header);
+    if(c.subtitle){const detail=document.createElement('div');detail.className='chapter-nav-subtitle';detail.textContent=c.subtitle;group.append(detail);}
     const kids=document.createElement('div');kids.className='chapter-nav-kids';
     for(const [i,id] of c.checkpoints.entries()){
       const cp=WORLDS[state.course].checkpoints.find(x=>x.id===id);if(!cp)continue;
@@ -266,7 +267,23 @@ function openLesson(cp){
   }
   const caseRibbon=document.createElement('div');caseRibbon.className='checkpoint-ribbon';
   caseRibbon.textContent=`📖 ${cp.provision}     ·     📁 ${cp.case}`;
-  body.append(kicker,leading,help,keywordGrid,explanation,caseRibbon);
+  if(cp.reviewerPage){
+    const path=document.createElement('div');path.className='reviewer-breadcrumb';
+    path.textContent=`CHAPTER 2 / ${activeChapter().section.includes('SECTION 6')?'SECTION 6 · DISINHERITANCE':'SECTION 5 · LEGITIME'} / ${activeChapter().title}`;
+    body.append(path);
+  }
+  body.append(kicker,leading,help,keywordGrid,explanation);
+  if(cp.diagram){
+    const figure=document.createElement('figure');figure.className='lesson-original-figure';
+    const open=document.createElement('button');open.type='button';open.className='lesson-figure-open';
+    open.setAttribute('aria-label','Enlarge original legitime diagram from the reviewer');
+    const img=document.createElement('img');img.src=cp.diagram.src;img.alt=cp.diagram.alt;img.loading='lazy';
+    open.append(img);open.addEventListener('click',()=>openFigureZoom(cp.diagram.src,cp.diagram.alt,cp.diagram.caption));
+    const caption=document.createElement('figcaption');caption.textContent=cp.diagram.caption+' · TAP TO ENLARGE';
+    figure.append(open,caption);body.append(figure);
+  }
+  if(cp.reviewerPage){const src=document.createElement('p');src.className='reviewer-page-source';src.textContent=`Reviewer source: [Draft] SUCCESSION Block Notes-3.pdf, p. ${cp.reviewerPage}. Notes and charts are presented under their original headings.`;body.append(src);}
+  body.append(caseRibbon);
   $('challengeFeedback').textContent='';$('challengeFeedback').className='feedback';
   renderChallenge(cp);hide($('challengePanel'));$('challengeToggle').setAttribute('aria-expanded','false');
   setText('challengeToggle','✦ TRY THE MINI-GAME  ▾');

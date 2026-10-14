@@ -3,6 +3,6 @@
 // NEVER paste a "secret", "service_role", or database password in this file.
 // Leave blank for local-only preview before configuring the database.
 window.LEXQUEST_CONFIG = {
-  SUPABASE_URL: "",
-  SUPABASE_ANON_KEY: ""
+  SUPABASE_URL: "https://wdcutjkusqvcdynmcpfz.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_FkaAD7HgQae2-Z_7e_pVkA_BoX7_19F"
 };

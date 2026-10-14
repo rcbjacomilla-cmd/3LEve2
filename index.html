@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#120c32">
-  <meta name="description" content="LexQuest: an interactive Philippine law study adventure with checkpoints, games, and progress tracking.">
-  <title>LexQuest — An Interactive Law Study Adventure</title>
+  <meta name="description" content="3L EVE2: an interactive Philippine law study adventure with checkpoints, games, and progress tracking.">
+  <title>3L EVE2 — Interactive Law Study Adventure</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
         <div class="auth-art-caption">Every provision hides a clue. Every case is a quest.</div>
       </div>
       <div class="auth-side">
-        <div class="brand"><span class="brand-mark">⚖</span><span>LEX<span class="brand-accent">QUEST</span></span></div>
+        <div class="brand"><span class="brand-mark">⚖</span><span>3L <span class="brand-accent">EVE2</span></span></div>
         <div class="tiny-label">A collaborative law study adventure</div>
         <h1>Study the law.<br><em>Play the story.</em></h1>
         <p class="muted">Explore legal worlds, meet case characters, complete mini-games, and pick up where you left off.</p>
@@ -42,7 +42,7 @@
 
     <section id="dashboard" class="dashboard screen hidden">
       <header class="topbar">
-        <div class="brand small-brand"><span class="brand-mark">⚖</span><span>LEX<span class="brand-accent">QUEST</span></span></div>
+        <div class="brand small-brand"><span class="brand-mark">⚖</span><span>3L <span class="brand-accent">EVE2</span></span></div>
         <div class="user-controls"><span class="mode-chip" id="dashMode">Preview</span><span id="welcomeName" class="user-name"></span><button id="logoutButton" class="link-button" type="button">Log out</button></div>
       </header>
       <div class="dash-content">
@@ -60,12 +60,11 @@
           </button>
           <button class="course-card labor" data-course="labor" type="button">
             <div class="course-art labor-art" aria-hidden="true"><span class="big-glyph">✈</span><span class="tiny-pill">THE JOURNEY OF RIGHTS</span></div>
-            <div class="course-content"><div class="course-num">LAW 113 · WORLD 02</div><h3>Labor Law</h3><p>Join Maya's overseas work journey through recruitment, liability, and dismissal.</p><div class="meter"><span id="laborMeter"></span></div><div class="course-bottom"><span id="laborCount">0/6 checkpoints</span><span>Explore world ↗</span></div></div>
+            <div class="course-content"><div class="course-num">LAW 113 · WORLD 02</div><h3>Labor Law</h3><p>Study overseas work through recruitment, liability, and termination checkpoints.</p><div class="meter"><span id="laborMeter"></span></div><div class="course-bottom"><span id="laborCount">0/6 checkpoints</span><span>Explore world ↗</span></div></div>
           </button>
         </div>
         <div class="dashboard-footer">
-          <div class="howto"><h3>How to play</h3><p>Use <b>← →</b> or <b>A / D</b> to walk. On phones, hold the big ◀ ▶ buttons to walk and tap ✦ Interact. On computers, press <b>Space / Enter</b> at a glowing checkpoint, or tap it on your screen. You can revisit any lesson at any time.</p></div>
-          <div id="cloudPanel" class="cloud-panel"><h3>Class progress</h3><p id="classStatus">Connect Supabase to see classmates' opt-in results across devices.</p><label id="shareArea" class="share-area hidden"><input type="checkbox" id="shareProgress"> Show my name and completed lessons to classmates</label><div id="leaderboard" class="leaderboard"></div></div>
+          <div class="howto"><h3>How to play</h3><p>Explore each subject in <b>chapters</b>. Use <b>← ↑ ↓ →</b> or <b>W A S D</b> to move. On a phone, use the small directional pad and tap ✦ Interact. Open <b>☰ Navigate</b> at the upper right to jump between chapters or checkpoints.</p></div>
         </div>
         <p class="subtle-disclaimer">Learning practice only. Check the full assigned cases and statutory text for recitation and examinations.</p>
       </div>
@@ -74,29 +73,54 @@
     <section id="gameScreen" class="game-screen screen hidden">
       <header class="gamebar">
         <button id="backToDashboard" class="secondary-button" type="button">← Worlds</button>
-        <div class="game-title"><span id="worldSmall">WORLD 01</span><strong id="worldTitle">The Estate of Secrets</strong></div>
-        <div class="game-score">✦ <span id="worldStars">0</span> <span class="score-divide">|</span> <span id="worldProgress">0/6</span></div>
-      </header>
-      <div class="game-layout">
-        <div class="game-main">
-          <div class="canvas-frame"><canvas id="worldCanvas" width="1120" height="620" aria-label="Side-scrolling law adventure with character and learning checkpoints"></canvas><div class="canvas-caption" id="canvasCaption">Walk toward a glowing checkpoint and press INTERACT</div></div>
-          <div class="controls-row">
-            <div class="movement-controls"><button id="goLeft" class="control" type="button" aria-label="Move left">◀</button><button id="goRight" class="control" type="button" aria-label="Move right">▶</button></div>
-            <div class="control-hint">Keyboard: ← → / A D · Space to interact · Gamepad supported</div>
-            <button id="interactButton" class="primary-button interact-button" type="button">✦ Interact</button>
+        <div class="game-title"><span id="worldSmall">CHAPTER 1</span><strong id="worldTitle">Chapter title</strong></div>
+        <div class="game-top-tools">
+          <button id="lawLibraryButton" type="button" class="hud-file-button">📖 <span>LAW FILES</span></button>
+          <button id="caseLibraryButton" type="button" class="hud-file-button">📁 <span>CASE FILES</span></button>
+          <div class="navigator-anchor">
+            <button id="navToggle" type="button" class="hud-file-button nav-toggle" aria-expanded="false" aria-controls="questDropdown">☰ <span>NAVIGATE</span> ▾</button>
+            <aside id="questDropdown" class="quest-dropdown hidden" aria-label="Chapter and checkpoint navigator">
+              <div class="dropdown-head"><div><span class="tiny-label">CHAPTER NAVIGATOR</span><strong id="navStudent">Your chapters</strong></div><button id="navClose" type="button" class="nav-close" aria-label="Close navigation">×</button></div>
+              <div id="chapterNavGroups" class="chapter-nav-groups"></div>
+              <div class="dropdown-foot"><span id="journalPercent">0%</span> subject complete <div class="meter"><span id="journalMeter"></span></div></div>
+            </aside>
           </div>
         </div>
-        <aside class="quest-panel"><div class="tiny-label">QUEST JOURNAL</div><h2 id="journalTitle">Your checkpoints</h2><p class="muted small">Tap a chapter to travel straight to its marker.</p><div id="questItems" class="quest-items"></div><div class="quest-progress"><div class="row-between"><span>World complete</span><b id="journalPercent">0%</b></div><div class="meter"><span id="journalMeter"></span></div></div></aside>
+      </header>
+      <div class="chapter-strip">
+        <div class="chapter-blurb"><span id="chapterMeta">CHAPTER 1</span><strong id="chapterHeading">Illegal Recruitment</strong><small id="chapterDetails">Explore the learning checkpoints</small></div>
+        <div class="chapter-actions"><span class="chapter-progress">✦ <span id="worldStars">0</span> &nbsp; · &nbsp; <span id="worldProgress">0/5</span> checkpoints</span><button id="nextChapter" type="button" class="secondary-button next-chapter">Next chapter →</button></div>
+      </div>
+      <div class="canvas-frame"><canvas id="worldCanvas" width="1120" height="620" aria-label="Two-dimensional law adventure. Move up down left right to explore chapter checkpoints"></canvas><div class="canvas-caption" id="canvasCaption">Move in four directions. Inspect a glowing checkpoint when close.</div></div>
+      <div class="controls-row">
+        <div class="movement-controls" aria-label="Movement controls">
+          <button id="goUp" class="control up" type="button" aria-label="Move up">▲</button>
+          <button id="goLeft" class="control left" type="button" aria-label="Move left">◀</button>
+          <button id="goDown" class="control down" type="button" aria-label="Move down">▼</button>
+          <button id="goRight" class="control right" type="button" aria-label="Move right">▶</button>
+        </div>
+        <div class="control-hint">Arrow keys / WASD · E / Space to inspect · Tap map objects to travel</div>
+        <button id="interactButton" class="primary-button interact-button" type="button">✦ Interact</button>
       </div>
     </section>
   </main>
 
   <div id="lessonModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="lessonTitle">
-    <div class="lesson-dialog"><div class="lesson-header"><div><div class="tiny-label" id="lessonNumber">CHECKPOINT</div><h2 id="lessonTitle">Lesson</h2></div><button id="closeLesson" type="button" class="close-button" aria-label="Close checkpoint">×</button></div><div class="lesson-scroll"><div id="lessonBody"></div><div class="challenge"><div class="challenge-heading"><span class="challenge-icon">★</span><div><div class="tiny-label">MINI-GAME</div><h3 id="challengeTitle">Prove your understanding</h3></div></div><p id="challengePrompt"></p><div id="challengeGame"></div><div id="challengeFeedback" class="feedback" aria-live="polite"></div></div></div><div class="lesson-actions"><button id="closeLessonBottom" class="secondary-button" type="button">Back to map</button><span id="completionHint" class="completion-hint">Complete the challenge to earn ✦ 25</span></div></div>
+    <div class="lesson-dialog"><div class="lesson-header"><div><div class="tiny-label" id="lessonNumber">CHECKPOINT</div><h2 id="lessonTitle">Lesson</h2></div><button id="closeLesson" type="button" class="close-button" aria-label="Close checkpoint">×</button></div><div class="lesson-scroll"><div id="lessonBody"></div><div class="checkpoint-toolrow"><button id="checkpointLaw" type="button" class="file-button">📖 LAW / PROVISION FILE</button><button id="checkpointCase" type="button" class="file-button">📁 CASE DOCUMENT</button></div><button id="challengeToggle" type="button" class="quiz-reveal" aria-expanded="false">✦ TRY THE MINI-GAME <span>▾</span></button><div class="challenge hidden" id="challengePanel"><div class="challenge-heading"><span class="challenge-icon">★</span><div><div class="tiny-label">MINI-GAME</div><h3 id="challengeTitle">Prove your understanding</h3></div></div><p id="challengePrompt"></p><div id="challengeGame"></div><div id="challengeFeedback" class="feedback" aria-live="polite"></div></div></div><div class="lesson-actions"><button id="closeLessonBottom" class="secondary-button" type="button">Back to map</button><span id="completionHint" class="completion-hint">Complete the challenge to earn ✦ 25</span></div></div>
+  </div>
+  <div id="fileOverlay" class="overlay hidden file-overlay" role="dialog" aria-modal="true" aria-labelledby="fileOverlayTitle">
+   <div class="file-sheet"><header class="file-sheet-header"><div><div class="tiny-label" id="fileModeTag">LAW BOOK</div><h2 id="fileOverlayTitle">Law & provision files</h2></div><button id="closeFile" class="close-button" type="button" aria-label="Close file">×</button></header>
+     <div class="file-shell"><nav id="fileIndex" class="file-index" aria-label="Reference file list"></nav><article id="fileDocument" class="file-document"></article></div>
+     <footer class="file-footnote">Source: supplied study materials. Read full statutes and official decisions for examination and recitation.</footer>
+   </div>
   </div>
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   <script src="config.js"></script>
   <script src="lessons.js"></script>
-  <script type="module" src="game.js"></script>
+  <script src="reference-files.js"></script>
+  <script src="supplemental-laws.js"></script>
+  <script src="checkpoint-guide.js"></script>
+  <script src="chapters.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@
 // Do not publish full private notes without permission. These are short practice scenarios.
 window.LEXQUEST_WORLDS = {
   succession: {
-    title: "The Estate of Secrets", short: "Succession", hero: "Lia, the family estate explorer", color: "#e8c5b2",
+    title: "The Estate of Secrets", short: "Succession", hero: "Your class avatar", color: "#e8c5b2",
     checkpoints: [
       {id:"su-legitime",title:"The Sealed Will",tag:"Arts. 886, 904",object:"scroll",x:120,
         story:"A sealed testament lies in the mansion library. Lia discovers that the testator cannot freely give away everything if compulsory heirs survive.",
@@ -57,7 +57,7 @@ window.LEXQUEST_WORLDS = {
     ]
   },
   labor: {
-    title: "Maya's Journey of Rights", short:"Labor Law", hero:"Maya, an aspiring overseas worker", color:"#8fe0cb",
+    title: "Journey of Rights", short:"Labor Law", hero:"Your class avatar", color:"#8fe0cb",
     checkpoints:[
       {id:"la-recruitment",title:"The Recruitment Office",tag:"Illegal Recruitment",object:"office",x:120,
         story:"Maya sees an advertisement promising an overseas job. A recruiter asks for money—but what authority does the recruiter have?",

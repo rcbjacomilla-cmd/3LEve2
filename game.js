@@ -2,19 +2,26 @@ const $ = (id) => document.getElementById(id);
 const WORLDS = window.LEXQUEST_WORLDS;
 const ALL_CHECKPOINTS = Object.values(WORLDS).flatMap(w => w.checkpoints);
 const state = { mode: 'login', backend: 'local', cloud: null, user: null, progress: {}, course: null,
-  playerX: 50, walk: 0, keys: {left:false,right:false}, travelTo: null, activeCheckpoint: null,
+  chapterId: null, playerX: 80, playerY: 400, walk: 0, keys: {left:false,right:false,up:false,down:false}, travelTo: null, activeCheckpoint: null,
   lastFrame: 0, particles: [], shareProgress: false, cloudReady: null };
 const canvas = $('worldCanvas');
 const ctx = canvas.getContext('2d');
-const WORLD_WIDTH = 1120;
+const WORLD_WIDTH = 1620;
+const WORLD_HEIGHT = 1090;
 let WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 function resizeCanvas(){
   // On a phone, show a close-up following the moving character, not a miniature 1120px map.
-  WIDTH = window.innerWidth <= 700 ? 560 : WORLD_WIDTH;
+  WIDTH = window.innerWidth <= 700 ? 520 : 1120;
   if(canvas.width !== WIDTH) canvas.width = WIDTH;
 }
-function cameraOffset(){ return Math.max(0,Math.min(WORLD_WIDTH-WIDTH,state.playerX-WIDTH*.50)); }
+function cameraOffset(){return {x:Math.max(0,Math.min(WORLD_WIDTH-WIDTH,state.playerX-WIDTH*.48)),y:Math.max(0,Math.min(WORLD_HEIGHT-HEIGHT,state.playerY-HEIGHT*.54))};}
+function chaptersFor(course){return window.LEXQUEST_CHAPTERS[course];}
+function activeChapter(){return chaptersFor(state.course)?.find(ch=>ch.id===state.chapterId);}
+function activeCheckpoints(){const ids=new Set(activeChapter()?.checkpoints||[]);return WORLDS[state.course]?.checkpoints.filter(cp=>ids.has(cp.id))||[];}
+function chapterProgress(ch){return ch.checkpoints.filter(id=>state.progress[itemKey(state.course,id)]?.completed).length;}
+function chapterIndex(){return chaptersFor(state.course)?.findIndex(ch=>ch.id===state.chapterId)??0;}
+
 resizeCanvas();
 let toastTimeout;
 
@@ -22,6 +29,19 @@ function show(el){ el.classList.remove('hidden'); }
 function hide(el){ el.classList.add('hidden'); }
 function displayScreen(which){ ['authScreen','dashboard','gameScreen'].forEach(n => $(n).classList.toggle('hidden',n!==which)); }
 function setText(id,value){ $(id).textContent = String(value); }
+
+function currentPlayerName(){
+  return (state.user?.name || state.user?.display_name || 'Student').trim() || 'Student';
+}
+function displayCharacterName(){
+  const raw = currentPlayerName().split(/\s+/)[0] || currentPlayerName();
+  return raw.length > 10 ? raw.slice(0,10).toUpperCase() : raw.toUpperCase();
+}
+function personalize(text){
+  if(!text) return text;
+  const name = currentPlayerName();
+  return String(text).split("Maya's").join(`${name}'s`).split("Lia's").join(`${name}'s`).split('Maya').join(name).split('Lia').join(name);
+}
 function notify(message){ clearTimeout(toastTimeout); $('toast').textContent = message; show($('toast')); toastTimeout=setTimeout(()=>hide($('toast')),3200); }
 function slugName(name){ return name.trim().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'.').replace(/^\.+|\.+$/g,''); }
 function itemKey(course,id){ return `${course}:${id}`; }
@@ -128,7 +148,7 @@ async function logout(){
     localStorage.removeItem('lexquest_cloud_session');
     if(token)rpc('logout_player',{p_token:token}).catch(()=>{});
   }
-  state.user=null;state.progress={};state.course=null;state.keys={left:false,right:false};state.activeCheckpoint=null;
+  state.user=null;state.progress={};state.course=null;state.keys={left:false,right:false,up:false,down:false};state.activeCheckpoint=null;
   hide($('lessonModal'));displayScreen('authScreen');
 }
 function updateDashboard(){
@@ -142,82 +162,123 @@ function updateDashboard(){
     $(`${course}Meter`).style.width=progressRate(course)+'%';
     setText(`${course}Count`,`${solvedCount(course)}/${WORLDS[course].checkpoints.length} checkpoints`);
   }
-  if(state.backend==='cloud'){
-    setText('classStatus','Class progress is shared only by classmates who opt in.');
-    show($('shareArea'));$('shareProgress').checked=state.shareProgress;
-    loadLeaderboard();
-  }else{
-    hide($('shareArea'));setText('classStatus','Local preview: name + PIN and progress exist only in this browser. Set up Supabase for cross-device sync.');
-    $('leaderboard').replaceChildren();
-  }
-}
-async function loadLeaderboard(){
-  if(state.backend!=='cloud')return;
-  const board=$('leaderboard');board.textContent='Loading class progress…';
-  try{
-    const records=await rpc('get_class_progress',{p_token:localStorage.getItem('lexquest_cloud_session')});
-    board.replaceChildren();
-    if(!records.length){board.textContent='Nobody has opted in yet.';return;}
-    for(const p of records){
-      const row=document.createElement('div');row.className='leaderboard-row';
-      const name=document.createElement('span'),num=document.createElement('strong');
-      name.textContent=p.name;num.textContent=`${p.completed}/${ALL_CHECKPOINTS.length} ✓`;
-      row.append(name,num);board.append(row);
-    }
-  }catch(err){board.textContent='Class progress is unavailable.';console.error(err);}
-}
-async function toggleSharing(on){
-  if(state.backend!=='cloud'||!state.user)return;
-  try{await rpc('set_sharing',{p_token:localStorage.getItem('lexquest_cloud_session'),p_share:on});state.shareProgress=on;loadLeaderboard();}
-  catch(err){$('shareProgress').checked=!on;notify('Could not update sharing: '+err.message);}
+
 }
 
 function startWorld(course){
-  state.course=course;state.playerX=70;state.travelTo=null;state.walk=0;state.particles=[];
-  const w=WORLDS[course];setText('worldTitle',w.title);setText('worldSmall',course==='succession'?'WORLD 01 · SUCCESSION':'WORLD 02 · LABOR LAW');
-  setText('journalTitle',course==='labor'?"Maya's checkpoints":"Lia's estate chapters");
-  updateQuestUI(); displayScreen('gameScreen'); drawWorld(performance.now());
+  state.course=course;
+  displayScreen('gameScreen');
+  switchChapter(chaptersFor(course)[0].id);
+}
+function switchChapter(chapterId,checkpointId=null){
+  const ch=chaptersFor(state.course).find(c=>c.id===chapterId);
+  if(!ch)return;
+  state.chapterId=chapterId;
+  const target=WORLDS[state.course].checkpoints.find(cp=>cp.id===(checkpointId||ch.checkpoints[0]));
+  state.playerX=Math.max(40,target.x-105);state.playerY=Math.min(WORLD_HEIGHT-60,target.y+74);
+  state.travelTo=checkpointId ? {x:target.x,y:target.y,id:target.id} : null;
+  state.walk=0;state.particles=[];state.keys={left:false,right:false,up:false,down:false};
+  closeNav();updateQuestUI();drawWorld(performance.now());
+  notify(ch.title+' · '+ch.checkpoints.length+' checkpoints');
+}
+function goNextChapter(){
+  const chapters=chaptersFor(state.course),i=chapterIndex();
+  if(i<chapters.length-1){closeLesson();switchChapter(chapters[i+1].id);}
+  else notify('Last chapter reached. You can revisit any chapter using Navigate.');
 }
 function updateQuestUI(){
-  const course=state.course;if(!course)return;
-  const w=WORLDS[course],journal=$('questItems');journal.replaceChildren();
-  for(const cp of w.checkpoints){
-    const done=state.progress[itemKey(course,cp.id)]?.completed;
-    const btn=document.createElement('button');btn.className='quest-item'+(done?' solved':'');btn.type='button';
-    const dot=document.createElement('span');dot.className='quest-dot';dot.textContent=done?'✓':'✦';
-    const wrap=document.createElement('span');const strong=document.createElement('strong'),small=document.createElement('small');strong.textContent=cp.title;small.textContent=done?'Completed · revisit':'Go to checkpoint';wrap.append(strong,small);btn.append(dot,wrap);
-    btn.addEventListener('click',()=>{state.travelTo=cp.x;notify('Travelling to '+cp.title+'…');});journal.append(btn);
+  if(!state.course)return;
+  const ch=activeChapter();
+  const count=chapterProgress(ch);
+  setText('worldTitle',ch.title);setText('worldSmall',ch.label);
+  setText('chapterMeta',ch.section);setText('chapterHeading',ch.title);
+  setText('chapterDetails',`${ch.checkpoints.length} interactive checkpoints · choose any glowing object to inspect`);
+  setText('worldProgress',`${count}/${ch.checkpoints.length}`);
+  setText('worldStars',solvedCount(state.course)*25);
+  setText('navStudent',`${currentPlayerName()}'s chapters`);
+  setText('journalPercent',progressRate(state.course)+'%');
+  $('journalMeter').style.width=progressRate(state.course)+'%';
+  $('nextChapter').disabled=chapterIndex()>=chaptersFor(state.course).length-1;
+  $('nextChapter').textContent=chapterIndex()>=chaptersFor(state.course).length-1?'Last chapter ✓':'Next chapter →';
+  const index=$('chapterNavGroups');index.replaceChildren();
+  for(const c of chaptersFor(state.course)){
+    const group=document.createElement('div');group.className='chapter-nav-group';
+    const header=document.createElement('button');header.type='button';header.className='chapter-nav-header'+(c.id===state.chapterId?' active':'');
+    const heading=document.createElement('span');heading.textContent=c.title;
+    const subtitle=document.createElement('small');subtitle.textContent=`${c.label} · ${c.checkpoints.filter(id=>state.progress[itemKey(state.course,id)]?.completed).length}/${c.checkpoints.length}`;
+    header.append(heading,subtitle);header.addEventListener('click',()=>switchChapter(c.id));group.append(header);
+    const kids=document.createElement('div');kids.className='chapter-nav-kids';
+    for(const [i,id] of c.checkpoints.entries()){
+      const cp=WORLDS[state.course].checkpoints.find(x=>x.id===id);if(!cp)continue;
+      const done=!!state.progress[itemKey(state.course,id)]?.completed;
+      const b=document.createElement('button');b.type='button';b.className='chapter-nav-checkpoint';
+      const mark=document.createElement('span');mark.className='chapter-nav-mark';mark.textContent=done?'✓':'✦';
+      const label=document.createElement('span');label.textContent=`${i+1}. ${cp.title}`;
+      b.append(mark,label);b.addEventListener('click',()=>{
+        if(c.id!==state.chapterId)switchChapter(c.id,id);
+        else{state.travelTo={x:cp.x,y:cp.y,id:cp.id};closeNav();notify('Travelling to '+cp.title);}
+      });kids.append(b);
+    }
+    group.append(kids);index.append(group);
   }
-  setText('worldProgress',`${solvedCount(course)}/${w.checkpoints.length}`);
-  setText('worldStars',solvedCount(course)*25);
-  setText('journalPercent',progressRate(course)+'%');$('journalMeter').style.width=progressRate(course)+'%';
 }
-function nearestCheckpoint(){if(!state.course)return null;return WORLDS[state.course].checkpoints.reduce((a,b)=>Math.abs(b.x-state.playerX)<Math.abs(a.x-state.playerX)?b:a);}
-function interact(){if(!state.course||!$('lessonModal').classList.contains('hidden'))return;const cp=nearestCheckpoint();if(Math.abs(cp.x-state.playerX)<105)openLesson(cp);else notify('Walk closer to a glowing checkpoint (or choose it in the journal).');}
+function nearestCheckpoint(){
+  const checkpoints=activeCheckpoints();
+  if(!checkpoints.length)return null;
+  return checkpoints.reduce((a,b)=>Math.hypot(b.x-state.playerX,b.y-state.playerY)<Math.hypot(a.x-state.playerX,a.y-state.playerY)?b:a);
+}
+function interact(){
+  if(!state.course||!$('lessonModal').classList.contains('hidden')||!$('fileOverlay').classList.contains('hidden'))return;
+  const cp=nearestCheckpoint();if(!cp)return;
+  if(Math.hypot(cp.x-state.playerX,cp.y-state.playerY)<97)openLesson(cp);
+  else notify('Walk closer to a glowing checkpoint or choose one from Navigate.');
+}
+
 function openLesson(cp){
-  state.activeCheckpoint=cp;state.travelTo=null;
-  const arr=WORLDS[state.course].checkpoints;
-  setText('lessonNumber',`${WORLDS[state.course].short.toUpperCase()} · CHECKPOINT ${arr.indexOf(cp)+1} OF ${arr.length}`);
-  setText('lessonTitle',cp.title);setText('challengeTitle',cp.game.title);setText('challengePrompt',cp.game.prompt);
+  state.activeCheckpoint=cp; state.travelTo=null; clearTimeout(toastTimeout);hide($('toast'));
+  const arr=activeCheckpoints();
+  const guide=window.LEXQUEST_GUIDES[cp.id];
+  setText('lessonNumber',`${activeChapter().label} · CHECKPOINT ${arr.indexOf(cp)+1} OF ${arr.length}`);
+  $('checkpointCase').textContent=guide.caseIds?.length?'📁 CASE DOCUMENT':'📁 CASE INDEX';
+  setText('lessonTitle',cp.title); setText('challengeTitle',personalize(cp.game.title));setText('challengePrompt',personalize(cp.game.prompt));
   const body=$('lessonBody');body.replaceChildren();
-  const story=document.createElement('div');story.className='story-card';story.textContent=cp.story;
-  const summary=document.createElement('p');summary.className='summary-note';summary.textContent=cp.summary;
-  const grid=document.createElement('div');grid.className='info-grid';
-  const prov=document.createElement('div');prov.className='info-block';const ph=document.createElement('h4'),pp=document.createElement('p');ph.textContent='⚖ Relevant provisions';pp.textContent=cp.provision;prov.append(ph,pp);
-  const cas=document.createElement('div');cas.className='info-block';const ch=document.createElement('h4'),cpname=document.createElement('p'),cpnote=document.createElement('p'),link=document.createElement('a');ch.textContent='📘 Case connection';cpname.textContent=cp.case;cpnote.textContent=cp.caseNote;cpnote.style.marginTop='7px';if(/^https?:\/\//.test(cp.source)){link.href=cp.source;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Open source ↗';link.style.display='block';link.style.marginTop='9px';}
-  else{link.textContent='Source: '+cp.source;link.removeAttribute('href');link.style.display='block';link.style.marginTop='9px';link.style.color='#d3bded';link.style.fontSize='12px';}
-  cas.append(ch,cpname,cpnote,link);grid.append(prov,cas);
-  body.append(story,summary,grid);
+  const kicker=document.createElement('div');kicker.className='focus-kicker';kicker.textContent=cp.tag;
+  const leading=document.createElement('div');leading.className='focus-leading';leading.textContent=personalize(cp.story);
+  const help=document.createElement('div');help.className='keyword-help';help.textContent='TAP A KEYWORD TO UNFOLD ITS EXPLANATION ↓';
+  const keywordGrid=document.createElement('div');keywordGrid.className='keyword-grid';
+  const explanation=document.createElement('section');explanation.id='keywordExplanation';explanation.className='keyword-explanation hidden';explanation.setAttribute('aria-live','polite');
+  for(const [label,detail,symbol] of guide.keywords){
+    const btn=document.createElement('button');btn.type='button';btn.className='keyword-card';btn.setAttribute('aria-expanded','false');
+    const sign=document.createElement('span');sign.className='keyword-sign';sign.textContent=symbol;
+    const caption=document.createElement('strong');caption.textContent=label;
+    const arrow=document.createElement('small');arrow.textContent='TAP TO EXPAND  ↗';
+    btn.append(sign,caption,arrow);
+    btn.addEventListener('click',()=>{
+      if(btn.classList.contains('selected')){btn.classList.remove('selected');btn.setAttribute('aria-expanded','false');hide(explanation);return;}
+      keywordGrid.querySelectorAll('button').forEach(el=>{el.classList.remove('selected');el.setAttribute('aria-expanded','false');});
+      btn.classList.add('selected');btn.setAttribute('aria-expanded','true');explanation.replaceChildren();
+      const h=document.createElement('h3');h.textContent=label;
+      const p=document.createElement('p');p.textContent=personalize(detail);
+      const foot=document.createElement('p');foot.className='explanation-foot';foot.textContent='Explore the corresponding law and case files below for the complete assigned material.';
+      explanation.append(h,p,foot);show(explanation);
+      explanation.scrollIntoView({behavior:'smooth',block:'nearest'});
+    });keywordGrid.append(btn);
+  }
+  const caseRibbon=document.createElement('div');caseRibbon.className='checkpoint-ribbon';
+  caseRibbon.textContent=`📖 ${cp.provision}     ·     📁 ${cp.case}`;
+  body.append(kicker,leading,help,keywordGrid,explanation,caseRibbon);
   $('challengeFeedback').textContent='';$('challengeFeedback').className='feedback';
-  renderChallenge(cp);show($('lessonModal'));$('closeLesson').focus();
+  renderChallenge(cp);hide($('challengePanel'));$('challengeToggle').setAttribute('aria-expanded','false');
+  setText('challengeToggle','✦ TRY THE MINI-GAME  ▾');
+  show($('lessonModal'));$('closeLesson').focus();
 }
 function setFeedback(message,success){$('challengeFeedback').textContent=message;$('challengeFeedback').className='feedback '+(success?'success':'error');}
 async function winCheckpoint(cp){
   const prev=!!state.progress[itemKey(state.course,cp.id)]?.completed;
   if(!prev)await saveCompletion(state.course,cp.id);
-  setFeedback((prev?'Already completed. ':'Checkpoint cleared! ✦ +25 study stars. ')+cp.game.explanation,true);
+  setFeedback((prev?'Already completed. ':'Checkpoint cleared! ✦ +25 study stars. ')+personalize(cp.game.explanation),true);
   setText('completionHint','✓ Completed · revisit whenever you like');
-  if(!prev){for(let i=0;i<24;i++)state.particles.push({x:state.playerX+Math.random()*30-15,y:355,vx:(Math.random()-.5)*3,vy:-2-Math.random()*4,life:65,color:['#ffe5a0','#f7aecd','#acffe2'][i%3]});}
+  if(!prev){for(let i=0;i<24;i++)state.particles.push({x:state.playerX+Math.random()*30-15,y:state.playerY-45,vx:(Math.random()-.5)*3,vy:-2-Math.random()*4,life:65,color:['#ffe5a0','#f7aecd','#acffe2'][i%3]});}
 }
 function renderChallenge(cp){
   const container=$('challengeGame');container.replaceChildren();
@@ -234,7 +295,7 @@ function renderChallenge(cp){
         opts.querySelectorAll('button').forEach(x=>x.disabled=true);btn.classList.add('correct');await winCheckpoint(cp);
       });opts.append(btn);
     });container.append(opts);
-    if(done)setFeedback('Checkpoint already cleared. '+game.explanation,true);
+    if(done)setFeedback('Checkpoint already cleared. '+personalize(game.explanation),true);
   }else if(game.type==='match'){
     const matched=new Set();let selected=null;
     const grid=document.createElement('div');grid.className='match-grid';
@@ -256,109 +317,147 @@ function renderChallenge(cp){
       });right.append(b);
     });
     grid.append(left,right);container.append(grid);
-    if(done)setFeedback('Checkpoint already cleared. '+game.explanation,true);
+    if(done)setFeedback('Checkpoint already cleared. '+personalize(game.explanation),true);
   }
 }
 function closeLesson(){hide($('lessonModal'));state.activeCheckpoint=null;}
+
 function between(a,b,t){return a+(b-a)*t;}
+function box(x,y,w,h,fill,r=0){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
 function rect(x,y,w,h,fill){ctx.fillStyle=fill;ctx.fillRect(x,y,w,h);}
 function ellipse(x,y,rx,ry,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill();}
-function textDraw(s,x,y,size=18,color='#fff',align='center',weight='700'){
-  ctx.textAlign=align;ctx.textBaseline='middle';ctx.fillStyle=color;ctx.font=`${weight} ${size}px system-ui, sans-serif`;ctx.fillText(s,x,y);
+function textDraw(s,x,y,size=18,color='#fff',align='center',weight='700',family='system-ui, sans-serif'){
+  ctx.textAlign=align;ctx.textBaseline='middle';ctx.fillStyle=color;ctx.font=`${weight} ${size}px ${family}`;ctx.fillText(s,x,y);
+}
+function drawFacade(x,y,w,h,body,roof){
+  box(x,y,w,h,body,7);box(x-8,y-14,w+16,20,roof,5);
+  for(let yy=y+24;yy<y+h-36;yy+=43){
+    for(let xx=x+23;xx<x+w-30;xx+=47){
+      box(xx,yy,24,23,((xx+yy)/13|0)%2?'#b6a0e3':'#6fb5ca',3);
+    }
+  }
+  box(x+w/2-20,y+h-38,40,38,'#140c2f',4);
 }
 function drawBackdrop(t){
-  const con=state.course==='succession';const sky=ctx.createLinearGradient(0,0,0,HEIGHT);
-  if(con){sky.addColorStop(0,'#4b518e');sky.addColorStop(.6,'#a185ba');sky.addColorStop(1,'#e0b5bd');}
-  else{sky.addColorStop(0,'#2a617e');sky.addColorStop(.5,'#70b6b6');sky.addColorStop(1,'#f2bd9b');}
-  rect(0,0,WORLD_WIDTH,HEIGHT,sky);
-  ellipse(con?770:865,118,67,67,con?'#fbe0bc':'#ffeab1');
-  // Parallax mountain silhouettes
-  ctx.fillStyle=con?'#6f6898':'#5a8d93';ctx.beginPath();ctx.moveTo(0,365);
-  for(let x=0;x<=WORLD_WIDTH;x+=55)ctx.lineTo(x,300+Math.sin(x*.013)*30+Math.sin(x*.027)*19);
-  ctx.lineTo(WORLD_WIDTH,450);ctx.lineTo(0,450);ctx.fill();
-  if(con){
-    // Court district: columns and pediments
-    [75,360,660,930].forEach((x,i)=>{
-      rect(x-42,260,133,174,'#574e85');rect(x-48,248,145,17,'#d9bfd1');rect(x-48,425,145,18,'#433a71');
-      for(let c=0;c<3;c++){rect(x-23+c*40,273,22,153,'#cbbad3');rect(x-27+c*40,273,30,10,'#f1d7dd');}
-      ctx.fillStyle='#ddd0df';ctx.beginPath();ctx.moveTo(x-55,245);ctx.lineTo(x+25,199);ctx.lineTo(x+104,245);ctx.fill();
-    });
-  }else{
-    for(let x=0;x<WORLD_WIDTH;x+=210){rect(x+25,265,83,166,'#477787');rect(x+40,248,56,19,'#fae4b2');rect(x+45,300,17,25,'#a7d0c7');rect(x+72,300,17,25,'#a7d0c7');}
-    ctx.fillStyle='#438ca1';ctx.beginPath();ctx.moveTo(0,443);for(let x=0;x<=WORLD_WIDTH;x+=20)ctx.lineTo(x,440+Math.sin(t/500+x/38)*4);ctx.lineTo(WORLD_WIDTH,520);ctx.lineTo(0,520);ctx.fill();
-    for(let x=0;x<WORLD_WIDTH;x+=115)rect(x+10,415,24,28,'#6f618a');
+  const sky=ctx.createLinearGradient(0,0,0,WORLD_HEIGHT);
+  sky.addColorStop(0,'#10082f');sky.addColorStop(.5,'#1c104c');sky.addColorStop(1,'#130a32');
+  rect(0,0,WORLD_WIDTH,WORLD_HEIGHT,sky);
+  for(let i=0;i<65;i++){
+    const x=(i*193)%WORLD_WIDTH,y=(i*123)%WORLD_HEIGHT,a=.27+.2*Math.sin(t/900+i);
+    ctx.globalAlpha=a;box(x,y,5,5,'#ffefce',1);
   }
-  rect(0,450,WORLD_WIDTH,20,con?'#f4d0b8':'#ddb99c');
-  rect(0,469,WORLD_WIDTH,151,con?'#3a2e66':'#264b67');
-  for(let x=0;x<WORLD_WIDTH;x+=62){rect(x,474,54,15,con?'#514078':'#355a77');rect(x+4,498,54,18,con?'#33275c':'#203f57');}
+  ctx.globalAlpha=1;
+  const c=state.course==='labor';
+  const tops=[43,292,544,794];
+  tops.forEach((y,row)=>{
+    // three terraces: skyline and a broad, walkable promenade at each level
+    box(0,y+125,WORLD_WIDTH,94,row%2?'#302354':'#291e50');
+    box(0,y+125,WORLD_WIDTH,8,'#8570ab');
+    for(let x=50;x<WORLD_WIDTH;x+=410){
+      drawFacade(x,y+(row%2?10:22),288,121,
+        c?(['#4a2e71','#352d72','#45285f'][((x/410)|0)%3]):(['#50386b','#3e3578','#5b365e'][((x/410)|0)%3]),
+        c?'#7960a2':'#a17dae');
+    }
+    for(let x=35;x<WORLD_WIDTH;x+=112)box(x,y+174,47,5,'#8370ae',2);
+  });
+  // A dotted route visibly connects all checkpoint locations across X and Y.
+  const spots=activeCheckpoints();
+  if(spots.length){
+    ctx.save();ctx.strokeStyle='#d2b7ee71';ctx.lineWidth=5;ctx.lineCap='round';ctx.setLineDash([3,15]);
+    ctx.beginPath();ctx.moveTo(spots[0].x,spots[0].y);
+    for(let i=1;i<spots.length;i++)ctx.lineTo(spots[i].x,spots[i].y);
+    ctx.stroke();ctx.restore();
+  }
+  // Small atmospheric squares/papers, well behind playable objects
+  for(let i=0;i<12;i++){
+    let x=((t/75)+i*150)%(WORLD_WIDTH+60)-30,y=80+((i*137)%850);
+    ctx.save();ctx.translate(x,y);ctx.rotate(Math.sin(t/800+i)*.16);box(-6,-5,12,10,'#f4e7d8aa',1);ctx.restore();
+  }
 }
 function drawObject(cp,i,t){
-  const y=415,x=cp.x,con=state.course==='succession',done=!!state.progress[itemKey(state.course,cp.id)]?.completed;
+  const x=cp.x,y=cp.y,done=!!state.progress[itemKey(state.course,cp.id)]?.completed;
+  const near=Math.hypot(x-state.playerX,y-state.playerY)<97;
   ctx.save();
-  // pool of light and collectible symbol
-  ellipse(x,448,61,12,done?'#7dedb66b':'#fff3ad61');
-  const bob=Math.sin(t*.0028+i)*7;
-  if(cp.object==='gateway'||cp.object==='gate'){
-    rect(x-51,y-125,21,126,con?'#e4cbdb':'#ddd39e');rect(x+31,y-125,21,126,con?'#e4cbdb':'#ddd39e');rect(x-59,y-136,118,17,'#7e638d');
-    ellipse(x,y-91,32,32,'#382756');textDraw(cp.object==='gateway'?'⚖':'3+',x,y-92,24,'#ffdcab');
-  }else if(cp.object==='scroll'){
-    rect(x-38,y-100,78,94,'#f1d7b5');rect(x-47,y-113,18,120,'#a66a84');rect(x+32,y-113,18,120,'#a66a84');
-    [-76,-55,-34].forEach(p=>rect(x-22,y+p,44,4,'#aa7895'));
-  }else if(cp.object==='building'||cp.object==='office'){
-    rect(x-59,y-108,119,112,con?'#c5add4':'#e3bf9d');rect(x-66,y-116,132,18,con?'#6d5187':'#487484');
-    rect(x-18,y-58,38,63,'#5a446f');textDraw('§',x,y-80,33,'#fff1b5');
-  }else if(cp.object==='tower'){
-    rect(x-44,y-146,88,153,'#bda7cc');rect(x-59,y-158,118,24,'#705486');rect(x-22,y-106,45,54,'#594174');textDraw('!',x,y-79,32,'#ffe0aa');
+  if(near){ctx.strokeStyle='#e6cfff';ctx.lineWidth=4;ctx.beginPath();ctx.ellipse(x,y+9,75,20,0,0,Math.PI*2);ctx.stroke();}
+  ellipse(x,y+8,54,13,done?'#8fd5c388':'#fff0b077');
+  if(cp.object==='gate'||cp.object==='gateway'){
+    box(x-48,y-92,19,94,'#e4c5d8',3);box(x+29,y-92,19,94,'#e4c5d8',3);box(x-59,y-104,118,19,'#ffd25d',4);box(x-22,y-72,44,66,'#3b285d',3);textDraw('§',x,y-41,30,'#ffe6a9');
+  }else if(['office','building'].includes(cp.object)){
+    box(x-55,y-82,110,84,'#36617b',5);box(x-62,y-95,124,16,'#ffd25d',4);box(x-42,y-57,27,31,'#75bfd0',2);box(x+15,y-57,27,31,'#75bfd0',2);box(x-12,y-29,24,31,'#251943',3);
+  }else if(['scroll','files','books'].includes(cp.object)){
+    box(x-49,y-75,98,75,'#f5e8c7',5);box(x-56,y-90,16,101,'#a96688',5);box(x+40,y-90,16,101,'#a96688',5);[-59,-42,-25].forEach(v=>box(x-25,y+v,50,5,'#a66e90',2));
   }else if(cp.object==='bridge'){
-    rect(x-67,y-48,134,45,'#a26e83');for(let j=-1;j<=1;j++)rect(x+j*41-6,y-80,14,78,'#67487c');
-    ctx.strokeStyle='#f4c9a8';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(x-64,y-66);ctx.quadraticCurveTo(x,y-9,x+64,y-66);ctx.stroke();
+    box(x-66,y-43,132,44,'#9d7188',4);box(x-57,y-75,12,76,'#ffd25d',3);box(x+45,y-75,12,76,'#ffd25d',3);
+    ctx.strokeStyle='#ffdc75';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(x-60,y-63);ctx.quadraticCurveTo(x,y-7,x+60,y-63);ctx.stroke();
+  }else if(cp.object==='tower'){
+    box(x-48,y-102,96,102,'#aa93cc',5);box(x-59,y-114,118,18,'#68518d',3);box(x-18,y-76,36,45,'#3a295a',4);textDraw('!',x,y-55,25,'#ffe49d');
   }else if(cp.object==='ship'){
-    ctx.fillStyle='#efe8c8';ctx.beginPath();ctx.moveTo(x-65,y-47);ctx.lineTo(x+68,y-47);ctx.lineTo(x+38,y-5);ctx.lineTo(x-41,y-5);ctx.fill();
-    rect(x-4,y-117,7,69,'#765572');ctx.fillStyle='#ffdfb5';ctx.beginPath();ctx.moveTo(x+1,y-111);ctx.lineTo(x+1,y-56);ctx.lineTo(x+46,y-56);ctx.fill();
+    ctx.fillStyle='#eee2c7';ctx.beginPath();ctx.moveTo(x-62,y-31);ctx.lineTo(x+63,y-31);ctx.lineTo(x+42,y+1);ctx.lineTo(x-44,y+1);ctx.fill();
+    box(x-5,y-91,8,60,'#8c6287',2);ctx.fillStyle='#ffdcba';ctx.beginPath();ctx.moveTo(x+3,y-85);ctx.lineTo(x+3,y-40);ctx.lineTo(x+44,y-40);ctx.fill();
   }
-  ellipse(x,y-164+bob,24,24,done?'#72dfba':'#ffe29b');
-  textDraw(done?'✓':'✦',x,y-165+bob,24,'#372553');
+  const bob=Math.sin(t*.003+i)*5;
+  ellipse(x,y-118+bob,23,23,done?'#8fd5c3':'#ffe3a2');textDraw(done?'✓':'✦',x,y-117+bob,23,'#382452');
+  // Compact consistent label: never overlaps checkpoint objects, and every row follows the same baseline.
   const title=cp.title.length>23?cp.title.slice(0,21)+'…':cp.title;
-  const labelY=y-(i%2===0?208:243);
-  ctx.fillStyle='#150c33dd';ctx.beginPath();ctx.roundRect(x-100,labelY,200,30,11);ctx.fill();
-  textDraw(title,x,labelY+16,15,'#fff8e9');
+  box(x-101,y-172,202,32,'#1c1245ea',10);textDraw(title,x,y-155,14,'#fff6d3');
   ctx.restore();
 }
 function drawCharacter(t){
-  const x=state.playerX,y=435+Math.sin(state.walk*.22)*Math.min(3,state.walk>0?3:0);
-  ellipse(x,y+14,27,7,'#1b123570');
-  const walking=Math.abs(state.keys.left||state.keys.right)||state.travelTo!==null;
-  const step=walking?Math.sin(state.walk)*7:0;
-  ctx.save();ctx.translate(x,y);if(state.keys.left||state.travelTo!==null&&state.travelTo<x)ctx.scale(-1,1);
-  rect(-14,-21+step,11,25,'#d8a98c');rect(4,-21-step,11,25,'#d8a98c');
-  rect(-23,-52,46,37, state.course==='labor'?'#c37eb5':'#86b6d1');
-  ctx.fillStyle='#543871';ctx.beginPath();ctx.moveTo(-23,-23);ctx.lineTo(23,-23);ctx.lineTo(28,-13);ctx.lineTo(-28,-13);ctx.fill();
-  ellipse(0,-76,24,27,'#322541');ellipse(0,-70,20,22,'#e7aa8d');
-  rect(-21,-99,41,12,'#302442');rect(-24,-88,13,27,'#322541');
-  rect(-9,-70,5,5,'#392742');rect(8,-70,5,5,'#392742');
-  ctx.restore();
-  const closest=nearestCheckpoint();if(closest&&Math.abs(closest.x-x)<105){
-    ctx.fillStyle='#26183bd9';ctx.beginPath();ctx.roundRect(x-75,y-133,150,29,13);ctx.fill();textDraw(window.innerWidth<=700?'TAP ✦ INTERACT':'SPACE · INTERACT',x,y-119,13,'#ffe29b');
+  const x=state.playerX,y=state.playerY;
+  const walking=state.keys.left||state.keys.right||state.keys.up||state.keys.down||state.travelTo!==null;
+  const step=walking?Math.sin(state.walk)*3:0;
+  ellipse(x,y+5,26,7,'#140b287b');
+  ctx.save();ctx.translate(x,y+step);
+  if(state.keys.left || (state.travelTo&&state.travelTo.x<x))ctx.scale(-1,1);
+  box(-17,-90,37,34,'#2b1d31',5);box(-14,-74,31,29,'#d49a75',4);
+  box(-22,-46,47,39,state.course==='labor'?'#b35f92':'#9d83c9',5);
+  box(-30,-38,9,32,'#d49a75',3);box(24,-38,9,32,'#d49a75',3);
+  box(-16,-9,13,11,'#5b3b83',2);box(6,-9,13,11,'#5b3b83',2);
+  box(25,-31,12,23,'#ffd25d',4);ctx.restore();
+  textDraw(displayCharacterName(),x,y+32,13,'#fff','center','900','"Courier New", monospace');
+  const near=nearestCheckpoint();
+  if(near&&Math.hypot(near.x-x,near.y-y)<97){
+    box(x-86,y-133,172,27,'#170e3dda',10);textDraw('✦  INSPECT  ✦',x,y-119,12,'#ffdf93');
   }
 }
+
 function drawParticles(){
+
   state.particles=state.particles.filter(p=>p.life>0);
   for(const p of state.particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.11;p.life--;rect(p.x,p.y,8,8,p.color);}
 }
 function drawWorld(t){
   if(!state.course)return;
-  ctx.clearRect(0,0,WIDTH,HEIGHT);ctx.save();ctx.translate(-cameraOffset(),0);drawBackdrop(t);
-  WORLDS[state.course].checkpoints.forEach((c,i)=>drawObject(c,i,t));
+  ctx.clearRect(0,0,WIDTH,HEIGHT);
+  const camera=cameraOffset();ctx.save();ctx.translate(-camera.x,-camera.y);
+  drawBackdrop(t);
+  for(const [i,cp] of activeCheckpoints().entries())drawObject(cp,i,t);
   drawCharacter(t);drawParticles();ctx.restore();
-  if(totalSolved()===ALL_CHECKPOINTS.length){textDraw('✦ MASTER OF BOTH WORLDS ✦',WIDTH/2,55,24,'#ffecab');}
 }
 function tick(t){
-  const dt=Math.min(40,(t-state.lastFrame)||16);state.lastFrame=t;
-  if(state.course&&!$('gameScreen').classList.contains('hidden')&&$('lessonModal').classList.contains('hidden')){
-    let delta=0;
-    if(state.keys.left)delta=-1;else if(state.keys.right)delta=1;
-    if(state.travelTo!==null){const distance=state.travelTo-state.playerX;if(Math.abs(distance)<7){state.playerX=state.travelTo;state.travelTo=null;const cp=nearestCheckpoint();openLesson(cp);}else delta=Math.sign(distance);}
-    if(delta){state.playerX=Math.max(35,Math.min(WORLD_WIDTH-35,state.playerX+delta*dt*.30));state.walk+=dt*.025;}
+  const dt=Math.min(40,t-state.lastFrame||16);state.lastFrame=t;
+  const isPlaying=state.course&&!$('gameScreen').classList.contains('hidden')
+    &&$('lessonModal').classList.contains('hidden')&&$('fileOverlay').classList.contains('hidden')
+    &&$('questDropdown').classList.contains('hidden');
+  if(isPlaying){
+    let dx=(state.keys.right?1:0)-(state.keys.left?1:0);
+    let dy=(state.keys.down?1:0)-(state.keys.up?1:0);
+    if(state.travelTo){
+      dx=state.travelTo.x-state.playerX;dy=state.travelTo.y-state.playerY;
+      const distance=Math.hypot(dx,dy);
+      if(distance<8){
+        const target=activeCheckpoints().find(cp=>cp.id===state.travelTo.id);
+        state.playerX=state.travelTo.x;state.playerY=state.travelTo.y;state.travelTo=null;
+        if(target)openLesson(target);
+        dx=0;dy=0;
+      }
+    }
+    if(dx||dy){
+      const l=Math.hypot(dx,dy),speed=dt*.30;
+      state.playerX=Math.max(42,Math.min(WORLD_WIDTH-42,state.playerX+dx/l*speed));
+      state.playerY=Math.max(125,Math.min(WORLD_HEIGHT-53,state.playerY+dy/l*speed));
+      state.walk+=dt*.035;
+    }
   }
   if(state.course&&!$('gameScreen').classList.contains('hidden'))drawWorld(t);
   requestAnimationFrame(tick);
@@ -366,44 +465,151 @@ function tick(t){
 function startHold(btn,key){
   const stop=()=>state.keys[key]=false;
   btn.addEventListener('pointerdown',e=>{e.preventDefault();state.travelTo=null;state.keys[key]=true;btn.setPointerCapture(e.pointerId);});
-  for(const evt of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(evt,stop);
+  ['pointerup','pointercancel','lostpointercapture'].forEach(evt=>btn.addEventListener(evt,stop));
 }
+// The reference library is a working document drawer, using the supplied report's law book / case file pattern.
+let openFileType='law';let activeFileKey=null;
+function fileDataset(type){return window.LEXQUEST_REFERENCE_FILES[state.course||'labor']?.[type==='law'?'laws':'cases']||{};}
+function openReference(type,key=null){
+  if(!state.course)return;
+  openFileType=type;
+  const data=fileDataset(type),keys=Object.keys(data);
+  activeFileKey=key&&data[key]?key:keys[0];
+  setText('fileModeTag',type==='law'?'LAW BOOK · STATUTES / PROVISIONS':'CASE FILES · DOCTRINE / FACTS / ISSUE / RULING / RATIO');
+  setText('fileOverlayTitle',type==='law'?'Law & provision files':'Case documents');
+  renderReference();show($('fileOverlay'));$('closeFile').focus();
+}
+function addTextDiv(parent,tag,label,value,className){
+ const el=document.createElement(tag);if(className)el.className=className;
+ if(label){const strong=document.createElement('strong');strong.textContent=label;el.append(strong);}
+ const span=document.createElement('span');span.textContent=value||'Not covered in supplied notes.';el.append(span);
+ parent.append(el);return el;
+}
+function renderReference(){
+ const data=fileDataset(openFileType),index=$('fileIndex'),doc=$('fileDocument');index.replaceChildren();doc.replaceChildren();
+ Object.entries(data).forEach(([key,value],i)=>{
+   const b=document.createElement('button');b.type='button';b.className='file-index-item'+(key===activeFileKey?' active':'');
+   const icon=document.createElement('span');icon.textContent=openFileType==='law'?'📜':'⚖';
+   const text=document.createElement('span');text.textContent=value.title||value.name;
+   b.append(icon,text);b.addEventListener('click',()=>{activeFileKey=key;renderReference();});index.append(b);
+ });
+ const item=data[activeFileKey];if(!item)return;
+ const meta=document.createElement('div');meta.className='paper-meta';meta.textContent=openFileType==='law'?'PHILIPPINE LAW · STUDY FILE':'CASE DIGEST · ORIGINAL REVIEWER WORDING';
+ const h=document.createElement('h3');h.textContent=item.title||item.name;
+ const citation=document.createElement('div');citation.className='paper-citation';citation.textContent=item.citation||'PROVISION REFERENCE';
+ const stamp=document.createElement('div');stamp.className='paper-stamp';stamp.textContent=openFileType==='law'?'LAW FILE':'CASE FILE';
+ doc.append(meta,h,citation,stamp);
+ if(openFileType==='law'){
+    const note=document.createElement('div');note.className='paper-law';note.textContent=item.text;doc.append(note);
+ }else{
+    const digest=document.createElement('div');digest.className='digest-document';
+    for(const [field,title] of [['doctrine','DOCTRINE'],['facts','FACTS'],['issue','ISSUE'],['ruling','RULING / HELD'],['ratio','RATIO / REASONING']]){
+      const line=document.createElement('div');line.className='digest-line'+(field==='facts'?' digest-facts':'');
+      const label=document.createElement('strong');label.textContent=title;
+      const content=document.createElement('div');content.className='digest-content';
+      const para=document.createElement('p');para.className='digest-text';
+      const note=field==='ratio'?'Not separately stated in the supplied reviewer.':'Not separately stated in the supplied reviewer.';
+      para.textContent=item[field]||note;
+      if(!item[field])para.classList.add('digest-not-stated');
+      content.append(para);
+      if(field==='facts' && Array.isArray(item.figures)){
+        for(const figureInfo of item.figures){
+          const figure=document.createElement('figure');figure.className='case-figure';
+          const link=document.createElement('a');link.href=figureInfo.src;link.target='_blank';link.rel='noopener noreferrer';link.title='Open full-size original reviewer diagram';
+          link.setAttribute('aria-label','Enlarge the original relationship diagram');
+          link.addEventListener('click',e=>{e.preventDefault();openFigureZoom(figureInfo.src,figureInfo.alt||'Original diagram',figureInfo.caption||'Original reviewer diagram');});
+          const img=document.createElement('img');img.src=figureInfo.src;img.alt=figureInfo.alt||'Original case relationship diagram';img.loading='lazy';
+          link.append(img);figure.append(link);
+          const caption=document.createElement('figcaption');caption.textContent=(figureInfo.caption||'Original reviewer diagram')+' · Tap to enlarge';
+          figure.append(caption);content.append(figure);
+        }
+      }
+      line.append(label,content);digest.append(line);
+    }
+    doc.append(digest);
+ }
+ const source=document.createElement('p');source.className='paper-source';source.textContent='SOURCE · '+(item.source||'Assigned reviewer');doc.append(source);
+}
+function openFigureZoom(src,alt,caption){
+  let zoom=$('figureZoom');
+  if(!zoom){
+    zoom=document.createElement('div');zoom.id='figureZoom';zoom.className='figure-zoom hidden';
+    zoom.setAttribute('role','dialog');zoom.setAttribute('aria-modal','true');zoom.setAttribute('aria-label','Enlarged reviewer diagram');
+    const contents=document.createElement('div');contents.className='figure-zoom-sheet';
+    const close=document.createElement('button');close.type='button';close.className='figure-zoom-close';close.textContent='✕ Close';
+    close.addEventListener('click',()=>hide(zoom));
+    const img=document.createElement('img');img.id='figureZoomImage';
+    const text=document.createElement('p');text.id='figureZoomCaption';
+    contents.append(close,img,text);zoom.append(contents);document.body.append(zoom);
+    zoom.addEventListener('click',e=>{if(e.target===zoom)hide(zoom);});
+  }
+  $('figureZoomImage').src=src;$('figureZoomImage').alt=alt;
+  $('figureZoomCaption').textContent=caption;
+  show(zoom);zoom.querySelector('button').focus();
+}
+function closeReference(){hide($('fileOverlay'));}
+function closeNav(){hide($('questDropdown'));$('navToggle').setAttribute('aria-expanded','false');}
+function toggleNav(){const opening=$('questDropdown').classList.contains('hidden');$('questDropdown').classList.toggle('hidden',!opening);$('navToggle').setAttribute('aria-expanded',String(opening));}
 function bindEvents(){
   $('signInMode').addEventListener('click',()=>setAuthMode('login'));
   $('registerMode').addEventListener('click',()=>setAuthMode('register'));
   $('authForm').addEventListener('submit',handleAuth);
   $('logoutButton').addEventListener('click',logout);
   document.querySelectorAll('[data-course]').forEach(btn=>btn.addEventListener('click',()=>startWorld(btn.dataset.course)));
-  $('backToDashboard').addEventListener('click',()=>{state.course=null;state.travelTo=null;displayScreen('dashboard');updateDashboard();});
+  $('backToDashboard').addEventListener('click',()=>{state.course=null;state.chapterId=null;state.travelTo=null;closeNav();displayScreen('dashboard');updateDashboard();});
   $('interactButton').addEventListener('click',interact);
+  $('lawLibraryButton').addEventListener('click',()=>openReference('law'));
+  $('caseLibraryButton').addEventListener('click',()=>openReference('case'));
+  $('checkpointLaw').addEventListener('click',()=>openReference('law',window.LEXQUEST_GUIDES[state.activeCheckpoint?.id]?.lawIds?.[0]));
+  $('checkpointCase').addEventListener('click',()=>openReference('case',window.LEXQUEST_GUIDES[state.activeCheckpoint?.id]?.caseIds?.[0]));
+  $('closeFile').addEventListener('click',closeReference);
+  $('fileOverlay').addEventListener('click',e=>{if(e.target===$('fileOverlay'))closeReference();});
+  $('challengeToggle').addEventListener('click',()=>{
+    const hidden=$('challengePanel').classList.toggle('hidden');
+    $('challengeToggle').setAttribute('aria-expanded',String(!hidden));
+    $('challengeToggle').textContent=hidden?'✦ TRY THE MINI-GAME  ▾':'✦ MINI-GAME OPEN  ▴';
+    if(!hidden)$('challengePanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+  });
+  $('navToggle').addEventListener('click',toggleNav);$('navClose').addEventListener('click',closeNav);
   $('closeLesson').addEventListener('click',closeLesson);$('closeLessonBottom').addEventListener('click',closeLesson);
   $('lessonModal').addEventListener('click',e=>{if(e.target===$('lessonModal'))closeLesson();});
-  $('shareProgress').addEventListener('change',e=>toggleSharing(e.target.checked));
-  startHold($('goLeft'),'left');startHold($('goRight'),'right');
+  startHold($('goLeft'),'left');startHold($('goRight'),'right');startHold($('goUp'),'up');startHold($('goDown'),'down');
+  $('nextChapter').addEventListener('click',goNextChapter);
+  document.addEventListener('pointerdown',e=>{if(!$('questDropdown').contains(e.target)&&!$('navToggle').contains(e.target))closeNav();});
   window.addEventListener('keydown',e=>{
+    if(e.key==='Escape'&&!$('fileOverlay').classList.contains('hidden')){closeReference();return;}
+    if(e.key==='Escape'&&!$('questDropdown').classList.contains('hidden')){closeNav();return;}
     if(e.key==='Escape'&&!$('lessonModal').classList.contains('hidden')){closeLesson();return;}
-    if($('gameScreen').classList.contains('hidden')||!$('lessonModal').classList.contains('hidden')||['INPUT','TEXTAREA'].includes(document.activeElement?.tagName))return;
-    if(['ArrowLeft','a','A'].includes(e.key)){e.preventDefault();state.travelTo=null;state.keys.left=true;}
-    if(['ArrowRight','d','D'].includes(e.key)){e.preventDefault();state.travelTo=null;state.keys.right=true;}
-    if([' ','Enter'].includes(e.key)&&document.activeElement?.tagName!=='BUTTON'){e.preventDefault();interact();}
+    if($('gameScreen').classList.contains('hidden')||!$('lessonModal').classList.contains('hidden')||!$('fileOverlay').classList.contains('hidden')||['INPUT','TEXTAREA'].includes(document.activeElement?.tagName))return;
+    const directions={ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right',ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down'};
+    if(directions[e.key]){e.preventDefault();state.travelTo=null;state.keys[directions[e.key]]=true;}
+    if([' ','Enter','e','E'].includes(e.key)&&document.activeElement?.tagName!=='BUTTON'){e.preventDefault();interact();}
   });
-  window.addEventListener('keyup',e=>{if(['ArrowLeft','a','A'].includes(e.key))state.keys.left=false;if(['ArrowRight','d','D'].includes(e.key))state.keys.right=false;});
-  window.addEventListener('blur',()=>{state.keys.left=false;state.keys.right=false;});
+  window.addEventListener('keyup',e=>{
+    const directions={ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right',ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down'};
+    if(directions[e.key])state.keys[directions[e.key]]=false;
+  });
+  window.addEventListener('blur',()=>{state.keys={left:false,right:false,up:false,down:false};});
   canvas.addEventListener('click',e=>{
-    if(!state.course)return;const r=canvas.getBoundingClientRect();const x=(e.clientX-r.left)*(WIDTH/r.width)+cameraOffset();
-    const cp=WORLDS[state.course].checkpoints.reduce((a,b)=>Math.abs(b.x-x)<Math.abs(a.x-x)?b:a);
-    if(Math.abs(cp.x-x)<90){state.travelTo=cp.x;}else if(Math.abs(x-state.playerX)<75)interact();
+    if(!state.course)return;
+    const r=canvas.getBoundingClientRect(),cam=cameraOffset();
+    const x=(e.clientX-r.left)*(WIDTH/r.width)+cam.x,y=(e.clientY-r.top)*(HEIGHT/r.height)+cam.y;
+    const cps=activeCheckpoints(),cp=cps.reduce((a,b)=>Math.hypot(b.x-x,b.y-y)<Math.hypot(a.x-x,a.y-y)?b:a);
+    if(Math.hypot(cp.x-x,cp.y-y)<95){state.travelTo={x:cp.x,y:cp.y,id:cp.id};notify('Travelling to '+cp.title);}
+    else if(Math.hypot(x-state.playerX,y-state.playerY)<80)interact();
   });
   window.addEventListener('resize',resizeCanvas);
-  // Optional Switch/USB gamepad support. Do not override an active keyboard press.
+  // Optional gamepad: both axes for four-direction walking.
   let gpButton=false;
   setInterval(()=>{
-    if($('gameScreen').classList.contains('hidden')||!$('lessonModal').classList.contains('hidden'))return;
+    if($('gameScreen').classList.contains('hidden')||!$('lessonModal').classList.contains('hidden')||!$('fileOverlay').classList.contains('hidden'))return;
     const pad=[...(navigator.getGamepads?.()||[])].find(Boolean);if(!pad)return;
-    const axis=pad.axes?.[0]||0;
-    if(Math.abs(axis)>.35){state.keys[axis<0?'left':'right']=true;state.keys[axis<0?'right':'left']=false;state.travelTo=null;}
-    else if(!document.activeElement?.matches('button')){state.keys.left=false;state.keys.right=false;}
-    const pressed=!!(pad.buttons?.[0]?.pressed||pad.buttons?.[1]?.pressed);if(pressed&&!gpButton)interact();gpButton=pressed;
+    const ax=pad.axes?.[0]||0,ay=pad.axes?.[1]||0;
+    state.keys.left=ax<-.35;state.keys.right=ax>.35;
+    state.keys.up=ay<-.35;state.keys.down=ay>.35;
+    if(Math.abs(ax)>.35||Math.abs(ay)>.35)state.travelTo=null;
+    const pressed=!!(pad.buttons?.[0]?.pressed||pad.buttons?.[1]?.pressed);
+    if(pressed&&!gpButton)interact();gpButton=pressed;
   },80);
 }
 bindEvents();

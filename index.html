@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#120c32">
+  <meta name="description" content="LexQuest: an interactive Philippine law study adventure with checkpoints, games, and progress tracking.">
+  <title>LexQuest — An Interactive Law Study Adventure</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="stars" aria-hidden="true"></div>
+  <main id="app">
+    <section id="authScreen" class="auth-screen screen">
+      <div class="auth-art">
+        <div class="sun-disc"></div><div class="mountains"></div>
+        <div class="floating-book book-one">§</div><div class="floating-book book-two">⚖</div>
+        <div class="sprite-portrait" aria-hidden="true"><div class="sprite-hair"></div><div class="sprite-head"><i></i><b></b></div><div class="sprite-torso"></div><div class="sprite-skirt"></div><div class="sprite-legs"></div></div>
+        <div class="auth-art-caption">Every provision hides a clue. Every case is a quest.</div>
+      </div>
+      <div class="auth-side">
+        <div class="brand"><span class="brand-mark">⚖</span><span>LEX<span class="brand-accent">QUEST</span></span></div>
+        <div class="tiny-label">A collaborative law study adventure</div>
+        <h1>Study the law.<br><em>Play the story.</em></h1>
+        <p class="muted">Explore legal worlds, meet case characters, complete mini-games, and pick up where you left off.</p>
+        <div id="modeBanner" class="status-banner" role="status">Offline preview · accounts and progress stay on this device</div>
+        <div class="switcher" role="group" aria-label="Account action">
+          <button id="signInMode" class="switch active" type="button">Log in</button>
+          <button id="registerMode" class="switch" type="button">Create account</button>
+        </div>
+        <form id="authForm" autocomplete="off">
+          <label for="studyName">Your study name <span class="field-hint">(unique to you)</span></label>
+          <input id="studyName" type="text" minlength="3" maxlength="28" autocomplete="username" placeholder="e.g. Maria Santos" required>
+          <label for="studyPin">Your PIN <span class="field-hint">(8–12 digits)</span></label>
+          <input id="studyPin" type="password" minlength="8" maxlength="12" inputmode="numeric" pattern="[0-9]{8,12}" autocomplete="current-password" placeholder="••••••••" required>
+          <button id="authSubmit" class="primary-button full" type="submit">Enter the adventure →</button>
+        </form>
+        <p id="authError" class="form-error" role="alert" aria-live="polite"></p>
+        <p class="fine-print">For a study group, not confidential records or official graded examinations. Avoid PINs used elsewhere.</p>
+      </div>
+    </section>
+
+    <section id="dashboard" class="dashboard screen hidden">
+      <header class="topbar">
+        <div class="brand small-brand"><span class="brand-mark">⚖</span><span>LEX<span class="brand-accent">QUEST</span></span></div>
+        <div class="user-controls"><span class="mode-chip" id="dashMode">Preview</span><span id="welcomeName" class="user-name"></span><button id="logoutButton" class="link-button" type="button">Log out</button></div>
+      </header>
+      <div class="dash-content">
+        <div class="hero-copy"><div class="tiny-label">YOUR ADVENTURE AWAITS</div><h2>A quest for <em>jurisprudence.</em></h2><p>Choose a world. Move your character. Interact with glowing checkpoints. Answer questions to earn study stars.</p></div>
+        <div class="quick-stats">
+          <div class="stat"><strong id="completedStat">0 / 12</strong><span>Checkpoints conquered</span></div>
+          <div class="stat"><strong id="starsStat">0 ✦</strong><span>Study stars earned</span></div>
+          <div class="stat"><strong id="percentStat">0%</strong><span>Overall progress</span></div>
+        </div>
+        <h3 class="section-label">Choose your world</h3>
+        <div class="course-grid">
+          <button class="course-card succession" data-course="succession" type="button">
+            <div class="course-art succession-art" aria-hidden="true"><span class="big-glyph">📜</span><span class="tiny-pill">THE ESTATE OF SECRETS</span></div>
+            <div class="course-content"><div class="course-num">LAW 105 · WORLD 01</div><h3>Succession</h3><p>Explore wills, family heirs, legitimes, estate shares, collation, and disinheritance.</p><div class="meter"><span id="successionMeter"></span></div><div class="course-bottom"><span id="successionCount">0/6 checkpoints</span><span>Explore world ↗</span></div></div>
+          </button>
+          <button class="course-card labor" data-course="labor" type="button">
+            <div class="course-art labor-art" aria-hidden="true"><span class="big-glyph">✈</span><span class="tiny-pill">THE JOURNEY OF RIGHTS</span></div>
+            <div class="course-content"><div class="course-num">LAW 113 · WORLD 02</div><h3>Labor Law</h3><p>Join Maya's overseas work journey through recruitment, liability, and dismissal.</p><div class="meter"><span id="laborMeter"></span></div><div class="course-bottom"><span id="laborCount">0/6 checkpoints</span><span>Explore world ↗</span></div></div>
+          </button>
+        </div>
+        <div class="dashboard-footer">
+          <div class="howto"><h3>How to play</h3><p>Use <b>← →</b> or <b>A / D</b> to walk. On phones, hold the big ◀ ▶ buttons to walk and tap ✦ Interact. On computers, press <b>Space / Enter</b> at a glowing checkpoint, or tap it on your screen. You can revisit any lesson at any time.</p></div>
+          <div id="cloudPanel" class="cloud-panel"><h3>Class progress</h3><p id="classStatus">Connect Supabase to see classmates' opt-in results across devices.</p><label id="shareArea" class="share-area hidden"><input type="checkbox" id="shareProgress"> Show my name and completed lessons to classmates</label><div id="leaderboard" class="leaderboard"></div></div>
+        </div>
+        <p class="subtle-disclaimer">Learning practice only. Check the full assigned cases and statutory text for recitation and examinations.</p>
+      </div>
+    </section>
+
+    <section id="gameScreen" class="game-screen screen hidden">
+      <header class="gamebar">
+        <button id="backToDashboard" class="secondary-button" type="button">← Worlds</button>
+        <div class="game-title"><span id="worldSmall">WORLD 01</span><strong id="worldTitle">The Estate of Secrets</strong></div>
+        <div class="game-score">✦ <span id="worldStars">0</span> <span class="score-divide">|</span> <span id="worldProgress">0/6</span></div>
+      </header>
+      <div class="game-layout">
+        <div class="game-main">
+          <div class="canvas-frame"><canvas id="worldCanvas" width="1120" height="620" aria-label="Side-scrolling law adventure with character and learning checkpoints"></canvas><div class="canvas-caption" id="canvasCaption">Walk toward a glowing checkpoint and press INTERACT</div></div>
+          <div class="controls-row">
+            <div class="movement-controls"><button id="goLeft" class="control" type="button" aria-label="Move left">◀</button><button id="goRight" class="control" type="button" aria-label="Move right">▶</button></div>
+            <div class="control-hint">Keyboard: ← → / A D · Space to interact · Gamepad supported</div>
+            <button id="interactButton" class="primary-button interact-button" type="button">✦ Interact</button>
+          </div>
+        </div>
+        <aside class="quest-panel"><div class="tiny-label">QUEST JOURNAL</div><h2 id="journalTitle">Your checkpoints</h2><p class="muted small">Tap a chapter to travel straight to its marker.</p><div id="questItems" class="quest-items"></div><div class="quest-progress"><div class="row-between"><span>World complete</span><b id="journalPercent">0%</b></div><div class="meter"><span id="journalMeter"></span></div></div></aside>
+      </div>
+    </section>
+  </main>
+
+  <div id="lessonModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="lessonTitle">
+    <div class="lesson-dialog"><div class="lesson-header"><div><div class="tiny-label" id="lessonNumber">CHECKPOINT</div><h2 id="lessonTitle">Lesson</h2></div><button id="closeLesson" type="button" class="close-button" aria-label="Close checkpoint">×</button></div><div class="lesson-scroll"><div id="lessonBody"></div><div class="challenge"><div class="challenge-heading"><span class="challenge-icon">★</span><div><div class="tiny-label">MINI-GAME</div><h3 id="challengeTitle">Prove your understanding</h3></div></div><p id="challengePrompt"></p><div id="challengeGame"></div><div id="challengeFeedback" class="feedback" aria-live="polite"></div></div></div><div class="lesson-actions"><button id="closeLessonBottom" class="secondary-button" type="button">Back to map</button><span id="completionHint" class="completion-hint">Complete the challenge to earn ✦ 25</span></div></div>
+  </div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <script src="config.js"></script>
+  <script src="lessons.js"></script>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
